@@ -1,0 +1,133 @@
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 17.07.2023 16:05:23
+// Design Name: 
+// Module Name: top
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
+
+
+module top( input [31:0] a,
+input [31:0] b,
+output [31:0] mul
+    );
+    
+    wire sa, sb;
+    wire [7:0] expa, expb;
+    wire [22:0] manta, mantb;
+    wire adj;
+    assign sa = a[31];
+    assign expa = a[30:23];
+    assign manta = a[22:0];
+    assign sb = b[31];
+    assign expb = b[30:23];
+    assign mantb = b[22:0];    
+    
+    assign mul[31] = sa ^ sb;
+    //exp_mul e1(manta, mantb, mul[22:0], adj);
+    tosam_4 t1(manta, mantb, mul[22:0], adj);
+    assign mul[30:23] = expa + expb + adj;
+    
+endmodule
+
+// -------------------------------------------------------------------
+// The two modules below implements TOSAM (4,8) for the multiplication.
+// -------------------------------------------------------------------
+// (1+ f1)(1+f2) = 1 + f2 + f1 + f1*f2
+// During multiplication, 4 bits are mutliplied and during addition, 8 bits are added.
+module tosam_4 //#(parameter t = 4)
+(input [22:0] manta,
+input [22:0] mantb,
+output reg [22:0] mant_out,
+output reg adj);
+
+// wire [(t+3):0] ta, tb; // For addition
+// wire [(t-1):0] ha, hb; // For multiplication
+ 
+ wire [7:0] ta, tb; // For addition
+ wire [4:0] ha, hb; // For multiplication
+ //wire [7:0] inter;  // To store the 4 bit multiplication result
+ wire [9:0] final_mul; // To store the final result of multiplication
+ 
+ assign ta = manta[22:15];
+ assign tb = mantb[22:15];
+ 
+ determine_h h1(ta, ha);
+ determine_h h2(tb, hb);
+ 
+wire [9:0] inter;  
+ assign inter = ha*hb;
+ assign final_mul = {1'b1, 8'h00} + ta + tb + inter[9:2]; 
+
+ always@(*)
+ begin
+    if (final_mul[9] == 1)
+    begin
+        adj = 1;
+        mant_out[22:13] = final_mul[9:0];
+        mant_out[12:0] = 0;
+    end
+    else
+    begin
+        adj = 0;
+        mant_out[22:14] = final_mul[8:0];
+        mant_out[13:0] = 0;
+    end
+ 
+ end
+endmodule
+
+// Not sticking to TOSAM gave error, let's try original implementation, that is, divide into 16 regions.
+module determine_h(input [7:0] in, output reg [4:0] out);
+ wire [4:0] inter;
+ assign inter = in[7:3];
+ 
+always @(*)
+begin
+ if (5'b00000 <= inter & inter < 5'b00010)
+    out = 5'b00001;
+ else if (5'b00010 <= inter & inter < 5'b00100)
+    out = 5'b00011;
+ else if (5'b00100 <= inter & inter < 5'b00110)
+    out = 5'b00101;
+ else if (5'b00110 <= inter & inter < 5'b01000)
+    out = 5'b00111;
+ else if (5'b01000 <= inter & inter < 5'b01010)
+    out = 5'b01001;
+ else if (5'b01010 <= inter & inter < 5'b01100)
+    out = 5'b01011;
+ else if (5'b01100 <= inter & inter < 5'b01110)
+    out = 5'b01101;
+  else if (5'b01110 <= inter & inter < 5'b10000)
+    out = 5'b01111;
+ else if (5'b10000 <= inter & inter < 5'b10010)
+    out = 5'b10001;
+ else if (5'b10010 <= inter & inter < 5'b10100)
+    out = 5'b10011;
+ else if (5'b10100 <= inter & inter < 5'b10110)
+    out = 5'b10101;
+ else if (5'b10110 <= inter & inter < 5'b11000)
+    out = 5'b10111;
+ else if (5'b11000 <= inter & inter < 5'b11010)
+    out = 5'b11001;
+ else if (5'b11010 <= inter & inter < 5'b11100)
+    out = 5'b11011;
+ else if (5'b11100 <= inter & inter < 5'b11110)
+    out = 5'b11101;
+ else
+    out = 5'b11111;
+end
+endmodule
