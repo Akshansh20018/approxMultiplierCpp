@@ -1,0 +1,69 @@
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 17.07.2023 16:05:23
+// Design Name: 
+// Module Name: top
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
+
+
+module top( input [31:0] a,
+input [31:0] b,
+output [31:0] mul
+    );
+    
+    wire sa, sb;
+    wire [7:0] expa, expb;
+    wire [22:0] manta, mantb;
+    wire adj;
+    assign sa = a[31];
+    assign expa = a[30:23];
+    assign manta = a[22:0];
+    assign sb = b[31];
+    assign expb = b[30:23];
+    assign mantb = b[22:0];    
+    
+    assign mul[31] = sa ^ sb;
+    exp_mul e1(manta, mantb, mul[22:0], adj);
+    assign mul[30:23] = expa + expb + adj; 
+endmodule
+
+
+module exp_mul(input [22:0]manta,
+input [22:0] mantb,
+output reg [22:0] mant_out,
+output reg adj);
+
+wire [47:0] inter;
+wire [23:0] mida, midb;
+assign mida = {1'b1, manta};
+assign midb = {1'b1, mantb};
+assign inter = mida* midb ;
+
+always@(*)
+begin
+    if (inter[47] == 1'b1)
+    begin
+        adj = 1;
+        mant_out = inter[47:24];
+    end
+    else
+    begin
+        adj = 0;
+        mant_out = inter[46:23];
+    end
+end
+endmodule

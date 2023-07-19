@@ -1,0 +1,71 @@
+module top( input [31:0] a,
+input [31:0] b,
+output [31:0] mul
+    );
+    
+    wire sa, sb;
+    wire [7:0] expa, expb;
+    wire [22:0] manta, mantb;
+    wire adj;
+    assign sa = a[31];
+    assign expa = a[30:23];
+    assign manta = a[22:0];
+    assign sb = b[31];
+    assign expb = b[30:23];
+    assign mantb = b[22:0];    
+    
+    assign mul[31] = sa ^ sb;
+    fpcam f1(manta, mantb, mul[22:0], adj);
+    assign mul[30:23] = expa + expb + adj;
+endmodule
+
+module fpcam(
+    input [22:0] manta,
+    input [22:0] mantb,
+    output [22:0] mant_out,
+    //input t1,t2,t3,t4,t5,
+    // Not considering the reconfigurability as of now
+    output adj
+    );
+    wire [22:0] out1, out2, out3,out4;
+    
+    layer l1({2'b01,manta[22:2]},mantb,5'd22,1,manta, out1);
+    layer l2({3'b001,manta[22:3]},mantb,5'd21,1,out1, out2);
+    layer l3({4'b0001,manta[22:4]},mantb,5'd20,1,out2, out3);
+    layer l4({5'b00001,manta[22:5]},mantb,5'd19,1,out3, out4);
+    layer l5({6'b000001,manta[22:6]},mantb,5'd18,1,out4, mant_out);
+    
+    assign adj = mant_out[22] ?1:0;
+    
+endmodule
+
+module mux(input [22:0] a,
+input [22:0] b,
+output [22:0] c,
+input sel);
+assign c = sel ? a: b;
+endmodule
+
+module layer (input [22:0]a,
+input [22:0] b,
+input [4:0]i, // To select the bit from input 'b' 
+input t, // Tuning bit
+input [22:0] add, // Adder input from previous stage
+output [22:0] out);
+wire [22:0] mux_out;
+wire [22:0] and_out;
+integer j;
+
+mux m1(a,23'b0, mux_out,b[i]);
+/*always@(*)
+begin
+for ( j = 0; j< 23 ; j=j+1 )
+begin
+    and_out[i] = mux_out[i] & t;
+end
+end*/
+
+assign and_out = mux_out & 23'b1;
+assign out = and_out + add;
+
+endmodule
